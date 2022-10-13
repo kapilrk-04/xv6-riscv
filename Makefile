@@ -129,6 +129,8 @@ UPROGS=\
 	$U/_sh\
 	$U/_stressfs\
 	$U/_usertests\
+	$U/_alarmtest\
+	$U/_cowtest\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\

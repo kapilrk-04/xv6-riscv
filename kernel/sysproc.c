@@ -89,3 +89,86 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+// uint64
+// sys_sigalarm(void) {
+//   int ticks;
+//   uint64 addr;
+
+//   if(argint(0, &ticks) < 0 || argaddr(1, &addr) < 0)
+//     return -1;
+  
+//   myproc()->ticks = ticks;
+//   myproc()->alarm_handler = addr;
+
+//   return 0;
+// }
+// uint64 sys_sigalarm(void)
+// {
+//   uint64 addr;
+//   int ticks;
+
+//   if(argint(0, &ticks) < 0)
+//     return -1;
+//   if(argaddr(1, &addr) < 0)
+//     return -1;
+
+//   myproc()->ticks = ticks;
+//   myproc()->alarm_handler = addr;
+
+//   return 0;
+// }
+
+// uint64
+// sys_sigreturn(void) {
+//   struct proc *p = myproc();
+//   memmove(p->trapframe, p->alarm_trapframe, PGSIZE);
+
+//   kfree(p->alarm_trapframe);
+//   p->alarm_trapframe = 0;
+//   p->alarm_on = 0;
+//   p->cur_ticks = 0;
+//   return 0;
+// }
+// uint64 sys_sigreturn(void)
+// {
+//   struct proc *p = myproc();
+//   memmove(p->trapframe, p->alarm_trapframe, PGSIZE);
+
+//   kfree(p->alarm_trapframe);
+//   p->alarm_trapframe = 0;
+//   p->alarm_on = 0;
+//   p->cur_ticks = 0;
+//   return 0;
+// }
+uint64 sys_sigalarm(void){
+  int ticks;
+  if(argint(0, &ticks) < 0)
+    return -1;
+  uint64 handler;
+  if(argaddr(1, &handler) < 0)
+    return -1;
+  myproc()->alarm_on = 0;
+  myproc()->ticks = ticks;
+  myproc()->cur_ticks = 0;
+  myproc()->alarm_handler = handler;
+  return 0; 
+}
+
+void restore()
+{
+  struct proc*p=myproc();
+
+  p->alarm_trapframe->kernel_satp = p->trapframe->kernel_satp;
+  p->alarm_trapframe->kernel_sp = p->trapframe->kernel_sp;
+  p->alarm_trapframe->kernel_trap = p->trapframe->kernel_trap;
+  p->alarm_trapframe->kernel_hartid = p->trapframe->kernel_hartid;
+  *(p->trapframe) = *(p->alarm_trapframe);
+}
+
+uint64 sys_sigreturn(void){
+  restore();
+  myproc()->alarm_on = 0;
+  //myproc()->trapframe->a0 = 0xac;
+  return myproc()->trapframe->a0;
+}

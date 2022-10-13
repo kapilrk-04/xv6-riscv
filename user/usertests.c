@@ -2424,20 +2424,25 @@ stacktest(char *s)
 // check that writes to text segment fault
 void
 textwrite(char *s)
-{
+{ 
   int pid;
   int xstatus;
-  
+  //xstatus = 0;
+  //exit(xstatus);
   pid = fork();
   if(pid == 0) {
     volatile int *addr = (int *) 0;
+   // printf("This is child\n");
     *addr = 10;
+   // printf("THis is the child speaking");
     exit(1);
   } else if(pid < 0){
     printf("%s: fork failed\n", s);
     exit(1);
   }
+  //printf("pid = %d, waiting\n", pid);
   wait(&xstatus);
+ // printf("wait returned\n");
   if(xstatus == -1)  // kernel killed child?
     exit(0);
   else

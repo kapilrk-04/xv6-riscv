@@ -63,6 +63,10 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+void            init_page_ref();
+void            dec_page_ref(void* pa);
+void            inc_page_ref(void* pa);
+int             get_page_ref(void* pa);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -134,9 +138,9 @@ int             strncmp(const char*, const char*, uint);
 char*           strncpy(char*, const char*, int);
 
 // syscall.c
-void            argint(int, int*);
+int           argint(int, int*);
 int             argstr(int, char*, int);
-void            argaddr(int, uint64 *);
+int            argaddr(int, uint64 *);
 int             fetchstr(uint64, char*, int);
 int             fetchaddr(uint64, uint64*);
 void            syscall();
@@ -147,6 +151,7 @@ void            trapinit(void);
 void            trapinithart(void);
 extern struct spinlock tickslock;
 void            usertrapret(void);
+int            page_fault_handler(void* va, pagetable_t pagetable);
 
 // uart.c
 void            uartinit(void);

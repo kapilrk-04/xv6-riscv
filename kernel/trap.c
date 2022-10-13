@@ -16,6 +16,46 @@ void kernelvec();
 
 extern int devintr();
 
+int page_fault_handler(void*va,pagetable_t pagetable){
+  //returns -1 when cannot alloc mem
+  //-2 when invalid address
+  //0 when success
+  struct proc* p = myproc();
+  if((uint64)va >= MAXVA || ((uint64)va >= PGROUNDDOWN(p->trapframe->sp) - PGSIZE && (uint64)va <= PGROUNDDOWN(p->trapframe->sp))){
+    return -1;
+  }
+
+  pte_t *pte;
+  uint64 pa;
+  uint flags;
+  va = (void*)PGROUNDDOWN((uint64)va);
+  pte = walk(pagetable,(uint64)va,0);
+  if(pte == 0){
+    return -1;
+  }
+  pa = PTE2PA(*pte);
+  if(pa == 0){
+    return -1;
+  }
+  flags = PTE_FLAGS(*pte);
+  if((flags & PTE_C) == 0){
+    return -1;
+  }
+  if(flags&PTE_C){
+    flags = (flags|PTE_W)&(~PTE_C);
+    char*mem;
+    mem = kalloc();
+    if(mem==0){
+      return -1;
+    }
+    memmove(mem,(void*)pa,PGSIZE); 
+    *pte = PA2PTE(mem)|flags;
+    kfree((void*)pa);
+    return 0;
+  }
+  return 0;
+}
+
 void
 trapinit(void)
 {
@@ -67,6 +107,11 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if(r_scause()==15){
+    int res = page_fault_handler((void*)r_stval(), p->pagetable);
+    if(res == -1 || res == -2){
+      p->killed = 1;
+    }
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
@@ -77,12 +122,19 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
-    yield();
+  if(which_dev == 2){
+    p->cur_ticks+=1;
+    if(p->ticks>0&&p->cur_ticks>=p->ticks&&!p->alarm_on){
+      p->cur_ticks = 0;
+      p->alarm_on=1;
+      *(p->alarm_trapframe)=*(p->trapframe);
+      p->trapframe->epc=p->alarm_handler;
+    }
+  yield();
+  }
 
   usertrapret();
 }
-
 //
 // return to user space
 //
@@ -90,7 +142,6 @@ void
 usertrapret(void)
 {
   struct proc *p = myproc();
-
   // we're about to switch the destination of traps from
   // kerneltrap() to usertrap(), so turn off interrupts until
   // we're back in user space, where usertrap() is correct.
@@ -127,6 +178,9 @@ usertrapret(void)
   // and switches to user mode with sret.
   uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
   ((void (*)(uint64))trampoline_userret)(satp);
+
+
+  
 }
 
 // interrupts and exceptions from kernel code go here via kernelvec,
